@@ -1,0 +1,104 @@
+name: 📖 Documentation
+description: Suggérer une amélioration de la documentation
+title: "[DOCS] "
+labels: ["documentation", "good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de nous aider à améliorer la documentation ! 📖
+        Une bonne documentation est essentielle pour la communauté.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vérifications préliminaires
+      description: Veuillez confirmer que vous avez effectué ces vérifications
+      options:
+        - label: J'ai lu la documentation existante
+          required: true
+        - label: J'ai cherché dans les issues existantes
+          required: true
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Type de documentation
+      description: Quel type de documentation voulez-vous améliorer ?
+      options:
+        - 📝 README principal
+        - 🚀 Guide d'installation
+        - 📘 Guide d'utilisation
+        - 🔧 Guide de développement
+        - 🏗️ Architecture du code
+        - 📋 Guide de contribution
+        - 🐛 Résolution de problèmes
+        - 📚 Documentation de l'API
+        - 🌍 Traductions
+        - Autre
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-issue
+    attributes:
+      label: Problème actuel
+      description: Qu'est-ce qui manque ou n'est pas clair dans la documentation ?
+      placeholder: "La section X n'explique pas... / Il manque des informations sur... / C'est confus quand..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-improvement
+    attributes:
+      label: Amélioration suggérée
+      description: Comment pensez-vous qu'on puisse améliorer cette documentation ?
+      placeholder: "Il faudrait ajouter... / Cette section devrait expliquer... / Un exemple serait utile pour..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target-audience
+    attributes:
+      label: Public cible
+      description: Pour qui cette amélioration serait-elle principalement utile ?
+      options:
+        - 👶 Débutants complets
+        - 💻 Utilisateurs expérimentés
+        - 🛠️ Développeurs/Contributeurs
+        - 🎯 Cas d'usage spécifiques
+        - 🌍 Tous les utilisateurs
+    validations:
+      required: true
+
+  - type: textarea
+    id: specific-section
+    attributes:
+      label: Section(s) concernée(s)
+      description: Précisez quels fichiers ou sections doivent être modifiés
+      placeholder: "README.md ligne 50-75 / CONTRIBUTING.md section Installation / Nouveau fichier docs/troubleshooting.md"
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Exemples ou références
+      description: Avez-vous des exemples de bonne documentation ou des références utiles ?
+      placeholder: "Le projet X explique bien... / Voici un exemple de ce que j'aimerais voir..."
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Seriez-vous intéressé(e) à contribuer à cette amélioration ?
+      options:
+        - label: Je peux aider à écrire cette documentation
+        - label: Je peux réviser/relire les modifications
+        - label: Je peux fournir des exemples ou captures d'écran
+        - label: Je peux traduire en d'autres langues
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Informations supplémentaires
+      description: Ajoutez tout contexte supplémentaire utile
+      placeholder: Screenshots, liens vers d'autres projets avec une bonne doc, etc.

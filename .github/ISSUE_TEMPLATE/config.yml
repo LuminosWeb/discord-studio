@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions Discord Studio
+    url: https://github.com/YourUsername/discord-studio/discussions
+    about: Pour poser des questions générales ou discuter du projet
+  - name: 🆘 Support & Aide
+    url: https://github.com/YourUsername/discord-studio/discussions/categories/q-a
+    about: Pour obtenir de l'aide sur l'utilisation de Discord Studio
+  - name: 💡 Idées & Suggestions
+    url: https://github.com/YourUsername/discord-studio/discussions/categories/ideas
+    about: Pour partager vos idées et suggestions d'amélioration

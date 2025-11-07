@@ -1,0 +1,109 @@
+name: 🐛 Bug Report
+description: Signaler un bug dans Discord Studio
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de prendre le temps de reporter ce bug ! 🐛
+        Veuillez remplir ce formulaire pour nous aider à comprendre et résoudre le problème.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vérifications préliminaires
+      description: Veuillez confirmer que vous avez effectué ces vérifications
+      options:
+        - label: J'ai cherché dans les issues existantes
+          required: true
+        - label: J'utilise la dernière version de Discord Studio
+          required: true
+        - label: J'ai testé avec un bot Discord valide
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description du bug
+      description: Décrivez clairement le problème rencontré
+      placeholder: Décrivez le bug de manière détaillée...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Étapes pour reproduire
+      description: Listez les étapes exactes pour reproduire le bug
+      placeholder: |
+        1. Ouvrir l'application
+        2. Cliquer sur '...'
+        3. Voir l'erreur
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportement attendu
+      description: Décrivez ce qui devrait se passer normalement
+      placeholder: L'application devrait...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportement actuel
+      description: Décrivez ce qui se passe réellement
+      placeholder: Au lieu de ça, l'application...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Système d'exploitation
+      description: Quel OS utilisez-vous ?
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS (non testé)
+        - Linux (non testé)
+        - Autre
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Version Node.js
+      description: Quelle version de Node.js utilisez-vous ?
+      placeholder: ex. 18.17.0
+    validations:
+      required: true
+
+  - type: input
+    id: app-version
+    attributes:
+      label: Version Discord Studio
+      description: Quelle version de Discord Studio utilisez-vous ?
+      placeholder: ex. 1.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs d'erreur
+      description: Copiez les logs d'erreur s'il y en a (Console DevTools, Terminal, etc.)
+      render: shell
+      placeholder: Collez les logs ici...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Informations supplémentaires
+      description: Ajoutez tout contexte supplémentaire utile (screenshots, vidéos, etc.)
+      placeholder: Screenshots, configuration spéciale, etc.

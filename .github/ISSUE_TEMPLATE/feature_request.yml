@@ -1,0 +1,104 @@
+name: ✨ Feature Request
+description: Proposer une nouvelle fonctionnalité pour Discord Studio
+title: "[FEATURE] "
+labels: ["enhancement", "needs-discussion"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Merci de proposer une nouvelle fonctionnalité ! ✨
+        Vos idées nous aident à améliorer Discord Studio.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Vérifications préliminaires
+      description: Veuillez confirmer que vous avez effectué ces vérifications
+      options:
+        - label: J'ai cherché dans les issues existantes
+          required: true
+        - label: Cette fonctionnalité n'existe pas déjà
+          required: true
+        - label: Cette fonctionnalité est en rapport avec Discord Studio
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problème à résoudre
+      description: Décrivez le problème que cette fonctionnalité résoudrait
+      placeholder: "Je suis frustré quand... / Il serait utile de pouvoir..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution proposée
+      description: Décrivez la fonctionnalité que vous aimeriez voir
+      placeholder: "J'aimerais pouvoir... / Cette fonctionnalité devrait..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Catégorie de fonctionnalité
+      description: Dans quelle catégorie cette fonctionnalité s'inscrit-elle ?
+      options:
+        - 🎵 Lecture audio (filtres, qualité, etc.)
+        - 🤖 Discord Bot (commandes, statut, etc.)
+        - 🎨 Interface utilisateur (design, navigation, etc.)
+        - ⚙️ Configuration (paramètres, raccourcis, etc.)
+        - 📱 Intégrations (services externes, APIs, etc.)
+        - 🔧 Performance (optimisation, cache, etc.)
+        - 📝 Gestion de playlists
+        - 🔒 Sécurité et permissions
+        - 📊 Analytics et statistiques
+        - Autre
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priorité souhaitée
+      description: À quel point cette fonctionnalité est-elle importante pour vous ?
+      options:
+        - 🔥 Critique (j'en ai vraiment besoin)
+        - ⚡ Importante (améliorerait grandement mon expérience)
+        - 📝 Normale (ce serait sympa à avoir)
+        - 🎁 Bonus (pas urgent mais intéressant)
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considérées
+      description: Avez-vous pensé à d'autres solutions ou contournements ?
+      placeholder: "J'ai essayé... / On pourrait aussi..."
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Exemples d'usage
+      description: Donnez des exemples concrets d'utilisation de cette fonctionnalité
+      placeholder: |
+        Exemple 1: Quand je...
+        Exemple 2: Pour un serveur...
+        Exemple 3: Dans le cas où...
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Idées d'implémentation
+      description: Si vous avez des idées techniques, partagez-les (optionnel)
+      placeholder: "Cette fonctionnalité pourrait être implémentée en... / On pourrait ajouter un bouton..."
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Informations supplémentaires
+      description: Ajoutez tout contexte supplémentaire (mockups, références, etc.)
+      placeholder: Links vers des références, screenshots d'inspiration, etc.
