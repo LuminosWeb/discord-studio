@@ -11,6 +11,8 @@
   [![Discord.js](https://img.shields.io/badge/Discord.js-14+-purple.svg)](https://discord.js.org/)
 </div>
 
+<img src="screenshot.png" alt="Screenshot de l'application" width="1920" height="1080">
+
 ## 📖 Description
 
 Discord Studio est une application de bureau moderne qui permet de créer facilement un bot musical pour Discord. L'application offre une interface utilisateur intuitive pour contrôler la lecture de musique depuis YouTube et Spotify directement dans les canaux vocaux Discord.

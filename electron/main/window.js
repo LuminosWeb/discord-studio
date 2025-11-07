@@ -9,10 +9,54 @@ function createWindow() {
   logger.init();
   logger.log('Création de la fenêtre principale...');
   
-  // Créer le tray seulement si l'icône existe
-  const trayIconPath = path.join(__dirname, "../", "../", "public/logo.png");
+  // Déterminer le chemin correct de l'icône selon l'environnement
+  const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
+  
+  // En développement, utiliser le dossier public
+  // En production, utiliser le dossier extraResources
+  const fs = require('fs');
+  let iconPath;
+  
+  if (isDev) {
+    iconPath = path.join(__dirname, '../../public/logo.ico');
+  } else {
+    // En production, essayer plusieurs chemins possibles
+    const possiblePaths = [
+      path.join(process.resourcesPath, 'public', 'logo.ico'),
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'public', 'logo.ico'),
+      path.join(__dirname, '../../public/logo.ico'),
+      path.join(app.getAppPath(), 'public', 'logo.ico'),
+    ];
+    
+    // Trouver le premier chemin qui existe
+    for (const testPath of possiblePaths) {
+      logger.log('Test du chemin:', testPath);
+      if (fs.existsSync(testPath)) {
+        iconPath = testPath;
+        logger.log('✅ Icône trouvée à:', testPath);
+        break;
+      } else {
+        logger.log('❌ Icône non trouvée à:', testPath);
+      }
+    }
+    
+    // Si aucun chemin ne fonctionne, utiliser le premier par défaut
+    if (!iconPath) {
+      iconPath = possiblePaths[0];
+      logger.error('⚠️ Aucune icône trouvée, utilisation du chemin par défaut:', iconPath);
+    }
+  }
+  
+  logger.log('Mode:', isDev ? 'développement' : 'production');
+  logger.log('Chemin final de l\'icône:', iconPath);
+  logger.log('process.resourcesPath:', process.resourcesPath);
+  logger.log('app.getAppPath():', app.getAppPath());
+  logger.log('__dirname:', __dirname);
+  
+  // Créer le tray avec l'icône .ico pour Windows
   try {
-    tray = new Tray(trayIconPath);
+    tray = new Tray(iconPath);
+    tray.setToolTip('Discord Studio');
     logger.log('Tray créé avec succès');
   } catch (error) {
     logger.error('Could not create tray:', error.message);
@@ -23,7 +67,7 @@ function createWindow() {
     height: 900,
     minHeight: 900,
     minWidth: 1000,
-    icon: path.join(__dirname, "../", "../", "public/logo.ico"),
+    icon: iconPath,
     frame: false, // Supprime la barre système
     webPreferences: {
       preload: path.join(__dirname, "schema.js"),
@@ -34,9 +78,12 @@ function createWindow() {
     },
   });
   
-  // En développement, charger depuis le serveur Vite
-  const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
-
+  // Forcer l'icône après la création de la fenêtre (pour Windows)
+  if (process.platform === 'win32' && fs.existsSync(iconPath)) {
+    win.setIcon(iconPath);
+    logger.log('Icône forcée sur la fenêtre');
+  }
+  
   // 🔥 Désactive le double-clic sur la title bar
   win.on("system-context-menu", (event) => event.preventDefault());
   
@@ -62,18 +109,12 @@ function createWindow() {
   if (isDev) {
     logger.log('Mode développement détecté');
     win.loadURL('http://localhost:5173');
-    win.webContents.openDevTools();
   } else {
     logger.log('Mode production détecté');
-    // En production, charger le fichier HTML depuis le dossier web-dist
-    // Utiliser app.getAppPath() pour obtenir le bon chemin même dans une archive asar
     const appPath = app.getAppPath();
     const htmlPath = path.join(appPath, 'web-dist', 'index.html');
     logger.log('Chemin HTML:', htmlPath);
     win.loadFile(htmlPath);
-    
-    // Ouvrir la console en production pour déboguer
-    win.webContents.openDevTools();
   }
   
   logger.log('Fenêtre créée avec succès');

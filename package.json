@@ -9,7 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
-    "build": "vite build && electron-builder --win --config.win.icon=public/logo.ico",
+    "build": "vite build && electron-builder --win",
     "preview": "vite preview",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -46,7 +46,7 @@
     "wait-on": "^9.0.1"
   },
   "build": {
-    "appId": "discord.studio",
+    "appId": "com.discord.studio",
     "productName": "Discord Studio",
     "icon": "public/logo.ico",
     "directories": {
@@ -58,17 +58,22 @@
       "node_modules/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "public/**/*"
+    ],
     "extraResources": [
       {
         "from": "public",
-        "to": "public"
+        "to": "public",
+        "filter": ["**/*"]
       }
     ],
     "win": {
       "target": "nsis",
       "icon": "public/logo.ico",
       "requestedExecutionLevel": "requireAdministrator",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "fileAssociations": []
     },
     "linux": {
       "target": "AppImage",
