@@ -360,7 +360,48 @@ class MusicManager {
    * Créer la ressource audio avec FFmpeg
    */
   createAudioStream() {
-    const ffmpegPath = require('ffmpeg-static');
+    let ffmpegPath;
+    
+    try {
+      // En mode développement, utiliser ffmpeg-static
+      const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
+      
+      if (isDev) {
+        ffmpegPath = require('ffmpeg-static');
+      } else {
+        // En production, utiliser le chemin relatif vers ffmpeg
+        const { app } = require('electron');
+        const path = require('path');
+        const appPath = app.getAppPath();
+        
+        // Essayer plusieurs emplacements possibles pour ffmpeg
+        const possiblePaths = [
+          path.join(appPath, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+          path.join(process.resourcesPath, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+          path.join(__dirname, '..', '..', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+          'ffmpeg' // Fallback sur ffmpeg système
+        ];
+        
+        ffmpegPath = possiblePaths.find(p => {
+          try {
+            return require('fs').existsSync(p);
+          } catch {
+            return false;
+          }
+        });
+        
+        if (!ffmpegPath) {
+          console.error('FFmpeg introuvable dans la version buildée');
+          throw new Error('FFmpeg introuvable');
+        }
+      }
+      
+      console.log('Utilisation de FFmpeg:', ffmpegPath);
+    } catch (error) {
+      console.error('Erreur lors de la résolution du chemin FFmpeg:', error);
+      // Fallback sur ffmpeg système
+      ffmpegPath = 'ffmpeg';
+    }
     
     const ffmpegArgs = [
       '-ss', this.currentSeekTime.toString(),
@@ -440,7 +481,14 @@ class MusicManager {
 
     this.audioPlayer.on('error', error => {
       console.error('Erreur du lecteur audio:', error);
+      console.error('Stack trace:', error.stack);
       this.isLoading = false;
+      
+      // Envoyer l'erreur au frontend pour debugging
+      const allWindows = BrowserWindow.getAllWindows();
+      if (allWindows.length > 0) {
+        allWindows[0].webContents.send('audio-error', error.message);
+      }
     });
   }
 

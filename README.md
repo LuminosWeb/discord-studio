@@ -1,7 +1,7 @@
 # 🎵 Discord Studio
 
 <div align="center">
-  <img src="public/iMusic.png" alt="Discord Studio Logo" width="128" height="128">
+  <img src="public/logo.png" alt="Discord Studio Logo" width="128" height="128">
   
   **Une application Electron moderne pour diffuser de la musique dans Discord**
   

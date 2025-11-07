@@ -214,7 +214,7 @@ function CompleteApp({ actions, state }) {
                                             </div>
                                         ) : null}
 
-                                        <img src={track.thumbnail} alt={track.title} className="history-thumbnail" />
+                                        <img src={track.thumbnail} draggable={false} alt={track.title} className="history-thumbnail" />
 
                                         <div className="history-details">
                                             <p className="history-title" title={track.title?.trim()}>{track.title}</p>

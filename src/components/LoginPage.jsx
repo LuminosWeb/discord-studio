@@ -17,7 +17,7 @@ function LoginPage({ error, setError, token, setToken, handleConnect, isLoading,
          <div className="app">
             <div className="discord-container">
                <div className="w-fit mx-auto">
-                  <img src="/iMusic.png" alt="iMusic Logo" className="w-20 h-20 mx-auto" />
+                  <img src="logo.png" alt="iMusic Logo" draggable={false} className="w-20 h-20 mx-auto" />
                </div>
 
                {isLoading ? (

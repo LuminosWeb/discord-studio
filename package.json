@@ -9,9 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
-    "build": "vite build && electron-builder",
-    "build-dir": "vite build && electron-builder --dir",
-    "build-simple": "vite build && npx electron-packager . \"Discord Studio\" --platform=win32 --arch=x64 --out=build --overwrite --asar",
+    "build": "vite build && electron-builder --win --config.win.icon=public/logo.ico",
     "preview": "vite preview",
     "postinstall": "electron-builder install-app-deps"
   },
@@ -48,13 +46,14 @@
     "wait-on": "^9.0.1"
   },
   "build": {
-    "appId": "com.discord.studio",
+    "appId": "discord.studio",
     "productName": "Discord Studio",
+    "icon": "public/logo.ico",
     "directories": {
       "output": "dist"
     },
     "files": [
-      "dist/**/*",
+      "web-dist/**/*",
       "electron/**/*",
       "node_modules/**/*",
       "package.json"
@@ -66,13 +65,41 @@
       }
     ],
     "win": {
-      "target": "dir"
+      "target": "nsis",
+      "icon": "public/logo.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "signAndEditExecutable": false
     },
-    "nsis": false,
-    "mac": false,
-    "linux": false,
+    "linux": {
+      "target": "AppImage",
+      "icon": "public/logo.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/logo.ico"
+    },
     "forceCodeSigning": false,
     "npmRebuild": false,
-    "artifactName": "${productName}-${version}.${ext}"
+    "asar": true,
+    "artifactName": "${productName}-${version}.${ext}",
+    "nsis": {
+      "runAfterFinish": true,
+      "removeDefaultUninstallWelcomePage": true,
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DiscordStudio",
+      "include": "installer.nsh",
+      "installerIcon": "public/logo.ico",
+      "uninstallerIcon": "public/logo.ico",
+      "installerHeaderIcon": "public/logo.ico",
+      "displayLanguageSelector": true,
+      "artifactName": "DiscordStudio-Installer-${version}.${ext}",
+      "license": "LICENSE",
+      "differentialPackage": false
+    }
   }
 }

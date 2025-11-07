@@ -86,6 +86,7 @@ function MusicManager({ state, actions }) {
                     src={track.thumbnail} 
                     alt={track.title} 
                     className="track-thumbnail"
+                    draggable={false}
                     style={{ opacity: state.currentTrack ? 1 : 0.5 }}
                 />
             ) : (

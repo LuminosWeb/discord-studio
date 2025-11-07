@@ -1,13 +1,23 @@
 const path = require('path');
-const { BrowserWindow, app } = require('electron');
+const { BrowserWindow, app, Tray } = require('electron');
+
+let tray;
 
 function createWindow() {
+  // Créer le tray seulement si l'icône existe
+  const trayIconPath = path.join(__dirname, "../", "../", "public/logo.png");
+  try {
+    tray = new Tray(trayIconPath);
+  } catch (error) {
+    console.log('Could not create tray:', error.message);
+  }
+
   const win = new BrowserWindow({
     width: 1000,
     height: 900,
     minHeight: 900,
     minWidth: 1000,
-    icon: path.join(__dirname, '../../public/iMusic.ico'),
+    icon: path.join(__dirname, "../", "../", "public/logo.ico"),
     frame: false, // Supprime la barre système
     webPreferences: {
       preload: path.join(__dirname, "schema.js"),
