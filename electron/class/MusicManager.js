@@ -6,6 +6,7 @@ const os = require('os');
 const { BrowserWindow } = require('electron');
 const { ActivityType } = require("discord.js");
 const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus, VoiceConnectionStatus, entersState, StreamType } = require('@discordjs/voice');
+const logger = require('../utils/logger');
 
 /**
  * Classe pour gérer la musique et les connexions Discord
@@ -74,6 +75,26 @@ class MusicManager {
   }
 
   /**
+   * Envoyer un log au frontend
+   */
+  sendLogToFrontend(message, data = null) {
+    try {
+      const allWindows = BrowserWindow.getAllWindows();
+      if (allWindows.length > 0) {
+        const logData = data ? `${message} ${JSON.stringify(data)}` : message;
+        
+        // Logger dans le fichier ET dans la console
+        logger.log('[MusicManager]', logData);
+        
+        // Envoyer au frontend
+        allWindows[0].webContents.send('backend-log', { message, data, timestamp: Date.now() });
+      }
+    } catch (e) {
+      logger.error('Erreur envoi log:', e);
+    }
+  }
+
+  /**
    * Initialiser yt-dlp
    */
   async initYtDlp() {
@@ -83,17 +104,50 @@ class MusicManager {
       const userDataPath = app.getPath('userData');
       const ytDlpPath = path.join(userDataPath, 'yt-dlp.exe');
 
+      this.sendLogToFrontend('Initialisation de yt-dlp...');
+      this.sendLogToFrontend('Chemin userData:', userDataPath);
+      this.sendLogToFrontend('Chemin yt-dlp:', ytDlpPath);
+
       // Vérifier si yt-dlp existe déjà
       if (!fs.existsSync(ytDlpPath)) {
-        console.log('Téléchargement de yt-dlp...');
-        await YTDlpWrap.downloadFromGithub(ytDlpPath);
-        console.log('yt-dlp téléchargé avec succès');
+        this.sendLogToFrontend('Téléchargement de yt-dlp...');
+        
+        try {
+          // Télécharger avec un timeout plus long pour éviter les problèmes réseau
+          await Promise.race([
+            YTDlpWrap.downloadFromGithub(ytDlpPath),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout téléchargement yt-dlp')), 60000)
+            )
+          ]);
+          this.sendLogToFrontend('yt-dlp téléchargé avec succès');
+        } catch (downloadError) {
+          this.sendLogToFrontend('Erreur téléchargement yt-dlp:', downloadError.message);
+          throw new Error('Impossible de télécharger yt-dlp: ' + downloadError.message);
+        }
+      } else {
+        this.sendLogToFrontend('yt-dlp existe déjà');
+      }
+
+      // Vérifier que le fichier est bien présent et exécutable
+      if (!fs.existsSync(ytDlpPath)) {
+        throw new Error('Le fichier yt-dlp n\'existe pas après téléchargement');
+      }
+
+      const stats = fs.statSync(ytDlpPath);
+      this.sendLogToFrontend('Taille du fichier yt-dlp:', stats.size + ' bytes');
+      
+      if (stats.size === 0) {
+        throw new Error('Le fichier yt-dlp est vide');
       }
 
       this.ytDlpWrap.setBinaryPath(ytDlpPath);
       this.ytDlpReady = true;
+      this.sendLogToFrontend('✅ yt-dlp initialisé avec succès');
     } catch (error) {
-      console.error('Erreur lors de l\'initialisation de yt-dlp:', error);
+      this.sendLogToFrontend('❌ Erreur lors de l\'initialisation de yt-dlp:', error.message);
+      this.ytDlpReady = false;
+      throw error;
     }
   }
 
@@ -191,16 +245,17 @@ class MusicManager {
     let actualUrl = youtubeUrl;
     
     try {
+      this.sendLogToFrontend('Début getVideoInfo pour:', youtubeUrl);
+      
       if (selectedPlatform === 'spotify') {
-        // Pour Spotify, extraire le nom de la track depuis l'URL
-        console.log('Mode Spotify: extraction du nom de la track...');
+        this.sendLogToFrontend('Mode Spotify: extraction du nom de la track...');
         
         // Utiliser une regex pour extraire l'ID de la track depuis l'URL
         const trackIdMatch = youtubeUrl.match(/track\/([a-zA-Z0-9]+)/);
         
         if (trackIdMatch && trackIdMatch[1]) {
           const trackId = trackIdMatch[1];
-          console.log('Track ID Spotify:', trackId);
+          this.sendLogToFrontend('Track ID Spotify:', trackId);
           
           // Utiliser l'API Spotify publique (pas besoin d'auth pour les métadonnées basiques)
           try {
@@ -219,13 +274,15 @@ class MusicManager {
               }).on('error', reject);
             });
             
-            console.log('Infos Spotify récupérées:', spotifyData.title);
+            this.sendLogToFrontend('Infos Spotify récupérées:', spotifyData.title);
             
             // Chercher sur YouTube avec le nom de la track
             actualUrl = `ytsearch1:${spotifyData.title}`;
             
             // Récupérer les infos de la vidéo YouTube trouvée
+            this.sendLogToFrontend('Appel ytDlpWrap.getVideoInfo pour Spotify...');
             const searchResult = await this.ytDlpWrap.getVideoInfo(actualUrl);
+            this.sendLogToFrontend('✅ Infos vidéo récupérées pour Spotify');
             videoInfo = {
               title: spotifyData.title,
               artist: spotifyData.author_name || searchResult.uploader || searchResult.channel || 'Artiste inconnu',
@@ -264,23 +321,117 @@ class MusicManager {
           };
         }
       } else {
-        // YouTube direct
-        const infoResult = await this.ytDlpWrap.getVideoInfo(youtubeUrl);
+        // YouTube direct - utiliser spawn directement pour plus de contrôle
+        this.sendLogToFrontend('Mode YouTube: récupération des infos avec spawn...');
+        
+        const ytDlpArgs = [
+          '--dump-json',
+          '--no-playlist',
+          '--no-warnings',
+          '--skip-download',
+          '--no-check-certificates',
+          '--socket-timeout', '20',
+          // Utiliser le client Android pour éviter les problèmes SABR
+          '--extractor-args', 'youtube:player_client=android',
+          youtubeUrl
+        ];
+        
+        this.sendLogToFrontend('Commande yt-dlp:', this.ytDlpWrap.getBinaryPath());
+        this.sendLogToFrontend('Arguments:', ytDlpArgs.join(' '));
+        
+        const ytDlpProcess = spawn(this.ytDlpWrap.getBinaryPath(), ytDlpArgs, {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          windowsHide: true
+        });
+        
+        let outputData = '';
+        let errorData = '';
+        
+        ytDlpProcess.stdout.on('data', (data) => {
+          outputData += data.toString();
+        });
+        
+        ytDlpProcess.stderr.on('data', (data) => {
+          const msg = data.toString();
+          errorData += msg;
+          // Logger seulement les erreurs importantes
+          if (msg.toLowerCase().includes('error')) {
+            this.sendLogToFrontend('yt-dlp stderr:', msg.trim());
+          }
+        });
+        
+        const infoResult = await new Promise((resolve, reject) => {
+          // Augmenter le timeout à 60 secondes
+          const timeout = setTimeout(() => {
+            ytDlpProcess.kill();
+            reject(new Error('Timeout getVideoInfo (60s)'));
+          }, 60000);
+          
+          ytDlpProcess.on('close', (code) => {
+            clearTimeout(timeout);
+            
+            if (code === 0 && outputData) {
+              try {
+                // Parser le JSON (peut contenir plusieurs lignes, prendre la première valide)
+                const lines = outputData.trim().split('\n');
+                let jsonData = null;
+                
+                for (const line of lines) {
+                  try {
+                    const parsed = JSON.parse(line);
+                    if (parsed.title) {
+                      jsonData = parsed;
+                      break;
+                    }
+                  } catch (e) {
+                    // Ignorer les lignes non-JSON
+                  }
+                }
+                
+                if (jsonData) {
+                  this.sendLogToFrontend('✅ JSON parsé avec succès, titre:', jsonData.title);
+                  resolve(jsonData);
+                } else {
+                  this.sendLogToFrontend('❌ Aucun JSON valide trouvé dans la sortie');
+                  reject(new Error('Aucune info vidéo dans la sortie'));
+                }
+              } catch (e) {
+                this.sendLogToFrontend('❌ Erreur parsing JSON:', e.message);
+                reject(new Error('Erreur parsing JSON: ' + e.message));
+              }
+            } else {
+              this.sendLogToFrontend('❌ yt-dlp code sortie:', code);
+              if (errorData) {
+                this.sendLogToFrontend('Erreur:', errorData.slice(-300));
+              }
+              reject(new Error(`yt-dlp failed (code ${code})`));
+            }
+          });
+          
+          ytDlpProcess.on('error', (err) => {
+            clearTimeout(timeout);
+            this.sendLogToFrontend('❌ Erreur processus yt-dlp:', err.message);
+            reject(err);
+          });
+        });
+        
+        this.sendLogToFrontend('✅ Infos vidéo YouTube récupérées');
+        
         videoInfo = {
-          title: infoResult.title,
+          title: infoResult.title || 'Titre inconnu',
           artist: infoResult.uploader || infoResult.channel || 'Artiste inconnu',
-          thumbnail: infoResult.thumbnail,
-          views: infoResult.view_count,
-          duration: infoResult.duration,
+          thumbnail: infoResult.thumbnail || 'https://via.placeholder.com/480',
+          views: infoResult.view_count || 0,
+          duration: infoResult.duration || 0,
           url: youtubeUrl,
           platform: 'youtube'
         };
       }
       
-      console.log('Infos vidéo:', videoInfo);
+      this.sendLogToFrontend('✅ getVideoInfo terminé avec succès');
       return { videoInfo, actualUrl };
     } catch (error) {
-      console.error('Erreur lors de la récupération des infos:', error);
+      this.sendLogToFrontend('❌ Erreur lors de la récupération des infos:', error.message);
       
       // Si c'est Spotify et qu'on n'a pas pu récupérer les infos, utiliser l'URL directement pour la recherche
       if (selectedPlatform === 'spotify') {
@@ -306,54 +457,117 @@ class MusicManager {
    * Télécharger le fichier audio
    */
   async downloadAudio(actualUrl) {
-    if (this.cachedAudioPath) return this.cachedAudioPath;
+    if (this.cachedAudioPath && fs.existsSync(this.cachedAudioPath)) {
+      console.log('Utilisation du cache existant:', this.cachedAudioPath);
+      return this.cachedAudioPath;
+    }
 
     const tempDir = os.tmpdir();
     const tempFile = path.join(tempDir, `discord-audio-${Date.now()}.webm`);
     
     console.log('Téléchargement du fichier audio...');
     console.log('URL actuelle:', actualUrl);
+    console.log('Fichier de sortie:', tempFile);
+    console.log('Binaire yt-dlp:', this.ytDlpWrap.getBinaryPath());
     
-    // Télécharger le fichier complet
+    // Vérifier que yt-dlp est prêt
+    if (!this.ytDlpReady) {
+      throw new Error('yt-dlp n\'est pas initialisé');
+    }
+
+    // Vérifier que le binaire existe
+    if (!fs.existsSync(this.ytDlpWrap.getBinaryPath())) {
+      throw new Error('Binaire yt-dlp introuvable: ' + this.ytDlpWrap.getBinaryPath());
+    }
+    
+    // Télécharger le fichier complet avec plus d'options pour la stabilité
     const downloadArgs = [
-      '-f', 'bestaudio',
+      '--no-check-certificates',
+      '--socket-timeout', '30',
+      '--retries', '3',
+      '-f', 'bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio',
       '-o', tempFile,
       actualUrl
     ];
     
-    const downloadProcess = spawn(this.ytDlpWrap.getBinaryPath(), downloadArgs);
+    console.log('Arguments yt-dlp:', downloadArgs.join(' '));
+    
+    const downloadProcess = spawn(this.ytDlpWrap.getBinaryPath(), downloadArgs, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true
+    });
 
-    // Capturer les erreurs
+    // Capturer les erreurs et la sortie
     let errorOutput = '';
+    let stdOutput = '';
+    
     downloadProcess.stderr.on('data', (data) => {
       const message = data.toString();
       errorOutput += message;
-      console.log('yt-dlp:', message);
+      console.log('yt-dlp stderr:', message.trim());
     });
 
     downloadProcess.stdout.on('data', (data) => {
-      console.log('yt-dlp output:', data.toString());
+      const message = data.toString();
+      stdOutput += message;
+      console.log('yt-dlp stdout:', message.trim());
     });
 
-    await new Promise((resolve, reject) => {
+    // Timeout de 5 minutes pour le téléchargement
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        downloadProcess.kill();
+        reject(new Error('Timeout: Le téléchargement a pris trop de temps (5 min)'));
+      }, 300000); // 5 minutes
+    });
+
+    const downloadPromise = new Promise((resolve, reject) => {
       downloadProcess.on('close', (code) => {
+        console.log('yt-dlp terminé avec le code:', code);
+        
         if (code === 0) {
-          this.cachedAudioPath = tempFile;
-          console.log('Fichier téléchargé:', this.cachedAudioPath);
-          resolve();
+          // Vérifier que le fichier a bien été créé
+          if (fs.existsSync(tempFile)) {
+            const stats = fs.statSync(tempFile);
+            console.log('Fichier téléchargé, taille:', stats.size, 'bytes');
+            
+            if (stats.size > 0) {
+              this.cachedAudioPath = tempFile;
+              resolve();
+            } else {
+              reject(new Error('Le fichier téléchargé est vide'));
+            }
+          } else {
+            reject(new Error('Le fichier n\'a pas été créé'));
+          }
         } else {
           console.error('Code de sortie yt-dlp:', code);
-          console.error('Erreur complète:', errorOutput);
-          reject(new Error(`Échec du téléchargement (code: ${code}). ${errorOutput.slice(0, 200)}`));
+          console.error('Erreur stderr:', errorOutput);
+          console.error('Sortie stdout:', stdOutput);
+          reject(new Error(`Échec du téléchargement (code: ${code}). ${errorOutput.slice(-300)}`));
         }
       });
+      
       downloadProcess.on('error', (err) => {
         console.error('Erreur processus yt-dlp:', err);
-        reject(err);
+        reject(new Error('Erreur de processus yt-dlp: ' + err.message));
       });
     });
 
-    return this.cachedAudioPath;
+    try {
+      await Promise.race([downloadPromise, timeoutPromise]);
+      return this.cachedAudioPath;
+    } catch (error) {
+      // Nettoyer le fichier partiel si il existe
+      if (fs.existsSync(tempFile)) {
+        try {
+          fs.unlinkSync(tempFile);
+        } catch (e) {
+          console.error('Erreur suppression fichier partiel:', e);
+        }
+      }
+      throw error;
+    }
   }
 
   /**
@@ -361,46 +575,79 @@ class MusicManager {
    */
   createAudioStream() {
     let ffmpegPath;
-    
+
     try {
       // En mode développement, utiliser ffmpeg-static
       const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
-      
+
       if (isDev) {
         ffmpegPath = require('ffmpeg-static');
       } else {
-        // En production, utiliser le chemin relatif vers ffmpeg
+        // En production, essayer plusieurs emplacements probables (app.asar.unpacked etc.)
         const { app } = require('electron');
         const path = require('path');
         const appPath = app.getAppPath();
-        
-        // Essayer plusieurs emplacements possibles pour ffmpeg
+
         const possiblePaths = [
-          path.join(appPath, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+          // Common locations when using asar/unpacked
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+          path.join(process.resourcesPath, 'app.asar.unpacked', 'ffmpeg.exe'),
           path.join(process.resourcesPath, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
+          path.join(appPath, 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
           path.join(__dirname, '..', '..', 'node_modules', 'ffmpeg-static', 'ffmpeg.exe'),
-          'ffmpeg' // Fallback sur ffmpeg système
+          // fallback to system ffmpeg
+          'ffmpeg'
         ];
-        
+
+        const fsExists = require('fs').existsSync;
         ffmpegPath = possiblePaths.find(p => {
           try {
-            return require('fs').existsSync(p);
-          } catch {
+            // If entry is 'ffmpeg' treat as candidate
+            if (p === 'ffmpeg') return false; // check system ffmpeg later
+            return fsExists(p);
+          } catch (e) {
             return false;
           }
         });
-        
+
+        // If no file found, try require('ffmpeg-static') which may point to unpacked binary
         if (!ffmpegPath) {
-          console.error('FFmpeg introuvable dans la version buildée');
-          throw new Error('FFmpeg introuvable');
+          try {
+            const ff = require('ffmpeg-static');
+            if (ff && fsExists(ff)) ffmpegPath = ff;
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        // If still not found, fallback to system ffmpeg (must be in PATH)
+        if (!ffmpegPath) {
+          ffmpegPath = 'ffmpeg';
         }
       }
-      
-      console.log('Utilisation de FFmpeg:', ffmpegPath);
+
+      logger.log('Utilisation de FFmpeg:', ffmpegPath);
     } catch (error) {
-      console.error('Erreur lors de la résolution du chemin FFmpeg:', error);
+      logger.error('Erreur lors de la résolution du chemin FFmpeg:', error);
       // Fallback sur ffmpeg système
       ffmpegPath = 'ffmpeg';
+    }
+
+    // Si ffmpegPath est un chemin absolu valide, ajouter son dossier au PATH pour que prism-media puisse le trouver
+    try {
+      const pathModule = require('path');
+      const fsModule = require('fs');
+      if (ffmpegPath && ffmpegPath !== 'ffmpeg' && fsModule.existsSync(ffmpegPath)) {
+        const ffDir = pathModule.dirname(ffmpegPath);
+        // Préserver l'ancien PATH
+        const oldPath = process.env.PATH || process.env.Path || '';
+        if (!oldPath.includes(ffDir)) {
+          process.env.PATH = `${ffDir}${path.delimiter}${oldPath}`;
+          logger.log('Ajout de FFmpeg au PATH:', ffDir);
+        }
+      }
+    } catch (e) {
+      logger.error('Erreur ajout FFmpeg au PATH:', e.message);
     }
     
     const ffmpegArgs = [
@@ -438,7 +685,7 @@ class MusicManager {
    */
   setupAudioPlayerEvents() {
     this.audioPlayer.on(AudioPlayerStatus.Playing, () => {
-      console.log('Audio démarré');
+      this.sendLogToFrontend('🎵 Audio démarré - PLAYING');
       this.isPaused = false;
       this.isLoading = false;
       
@@ -449,7 +696,7 @@ class MusicManager {
     });
 
     this.audioPlayer.on(AudioPlayerStatus.Idle, () => {
-      console.log('Audio terminé');
+      this.sendLogToFrontend('⏹️ Audio terminé - IDLE');
       
       // Vérifier si la boucle est activée
       if (this.isLooping && this.cachedAudioPath && fs.existsSync(this.cachedAudioPath)) {
@@ -480,8 +727,8 @@ class MusicManager {
     });
 
     this.audioPlayer.on('error', error => {
-      console.error('Erreur du lecteur audio:', error);
-      console.error('Stack trace:', error.stack);
+      this.sendLogToFrontend('❌ Erreur du lecteur audio:', error.message);
+      this.sendLogToFrontend('Stack trace:', error.stack);
       this.isLoading = false;
       
       // Envoyer l'erreur au frontend pour debugging
@@ -536,11 +783,28 @@ class MusicManager {
    */
   async joinAndPlay(guildId, channelId, youtubeUrl, selectedPlatform) {
     try {
+      this.sendLogToFrontend('=== DÉBUT JOINANDPLAY ===');
+      this.sendLogToFrontend('Guild:', guildId);
+      this.sendLogToFrontend('Channel:', channelId);
+      this.sendLogToFrontend('URL:', youtubeUrl);
+      this.sendLogToFrontend('Platform:', selectedPlatform);
+      
       this.isLoading = true;
 
       if (!this.discordManager.isReady()) throw new Error('Bot non connecté');
       if (!guildId || !channelId) throw new Error('Guild ou channel manquant');
       if (!youtubeUrl) throw new Error('URL YouTube manquante');
+
+      // Vérifier que yt-dlp est prêt avant de continuer
+      if (!this.ytDlpReady) {
+        this.sendLogToFrontend('⚠️ yt-dlp pas prêt, tentative de réinitialisation...');
+        await this.initYtDlp();
+        if (!this.ytDlpReady) {
+          throw new Error('yt-dlp n\'est pas disponible. Veuillez redémarrer l\'application.');
+        }
+      } else {
+        this.sendLogToFrontend('✅ yt-dlp est prêt');
+      }
 
       // Sauvegarder les informations pour rejouer avec un nouveau mode
       this.currentUrl = youtubeUrl;
@@ -576,16 +840,21 @@ class MusicManager {
       }
 
       // Obtenir le canal vocal
+      this.sendLogToFrontend('Récupération du canal vocal...');
       const channel = await this.discordManager.fetchChannel(channelId);
       if (!channel || !channel.isVoiceBased()) {
         throw new Error('Canal vocal invalide');
       }
+      this.sendLogToFrontend('✅ Canal vocal récupéré');
 
       // Récupérer les informations de la vidéo
+      this.sendLogToFrontend('Récupération des informations de la vidéo...');
       const { videoInfo, actualUrl } = await this.getVideoInfo(youtubeUrl, selectedPlatform);
       this.currentTrackInfo = videoInfo;
+      this.sendLogToFrontend('✅ Infos vidéo récupérées:', videoInfo.title);
 
       // Créer la connexion vocale avec @discordjs/voice
+      this.sendLogToFrontend('Création de la connexion vocale...');
       const connection = joinVoiceChannel({
         channelId: channel.id,
         guildId: channel.guild.id,
@@ -596,14 +865,16 @@ class MusicManager {
 
       // Attendre que la connexion soit prête
       try {
+        this.sendLogToFrontend('Attente de la connexion vocale...');
         await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
-        console.log('Connexion vocale établie');
+        this.sendLogToFrontend('✅ Connexion vocale établie');
       } catch (error) {
         connection.destroy();
         throw new Error('Impossible de se connecter au canal vocal');
       }
 
       // Créer le lecteur audio
+      this.sendLogToFrontend('Création du lecteur audio...');
       this.audioPlayer = createAudioPlayer();
       this.isPaused = false;
 
@@ -613,10 +884,14 @@ class MusicManager {
       }
 
       // Télécharger le fichier audio
+      this.sendLogToFrontend('📥 Téléchargement du fichier audio...');
       await this.downloadAudio(actualUrl);
+      this.sendLogToFrontend('✅ Fichier audio téléchargé');
 
       // Créer le stream audio
+      this.sendLogToFrontend('Création du stream audio avec FFmpeg...');
       const audioStream = this.createAudioStream();
+      this.sendLogToFrontend('✅ Stream audio créé');
 
       const resource = createAudioResource(audioStream, {
         inputType: StreamType.OggOpus,
@@ -635,19 +910,30 @@ class MusicManager {
       this.setupAudioPlayerEvents();
 
       // Souscrire le lecteur à la connexion
+      this.sendLogToFrontend('Souscription du lecteur à la connexion...');
       connection.subscribe(this.audioPlayer);
 
       // Jouer la ressource
+      this.sendLogToFrontend('▶️ Démarrage de la lecture...');
       this.audioPlayer.play(resource);
 
+      this.sendLogToFrontend('=== ✅ JOINANDPLAY TERMINÉ AVEC SUCCÈS ===');
       return { ok: true, trackInfo: videoInfo, isLoading: true };
     } catch (err) {
-      console.error('Erreur JoinAndPlay:', err);
+      this.sendLogToFrontend('=== ❌ ERREUR JOINANDPLAY ===');
+      this.sendLogToFrontend('Type d\'erreur:', err.constructor.name);
+      this.sendLogToFrontend('Message:', err.message);
+      this.sendLogToFrontend('Stack:', err.stack);
+      
       this.isLoading = false;
       if (this.currentConnection) {
         this.currentConnection.destroy();
         this.currentConnection = null;
       }
+      
+      // Nettoyer les processus en cas d'erreur
+      this.cleanup();
+      
       return { ok: false, message: err.message };
     }
   }

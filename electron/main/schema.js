@@ -19,6 +19,8 @@ const exposes = {
   // Event listeners
   onTrackEnded: (callback) => ipcRenderer.on('track-ended', callback),
   removeTrackEndedListener: (callback) => ipcRenderer.removeListener('track-ended', callback),
+  onBackendLog: (callback) => ipcRenderer.on('backend-log', (event, data) => callback(data)),
+  onAudioError: (callback) => ipcRenderer.on('audio-error', (event, message) => callback(message)),
 
   // manage window actions
   minimize: () => ipcRenderer.invoke('window-minimize'),
