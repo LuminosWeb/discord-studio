@@ -1,0 +1,78 @@
+{
+  "name": "discord-studio",
+  "version": "1.0.0",
+  "description": "Application Discord pour gérer et diffuser de la musique dans les canaux vocaux",
+  "license": "ISC",
+  "author": "bass",
+  "type": "commonjs",
+  "main": "electron/main/listener.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
+    "build": "vite build && electron-builder",
+    "build-dir": "vite build && electron-builder --dir",
+    "build-simple": "vite build && npx electron-packager . \"Discord Studio\" --platform=win32 --arch=x64 --out=build --overwrite --asar",
+    "preview": "vite preview",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.19.0",
+    "@distube/ytdl-core": "^4.16.12",
+    "@snazzah/davey": "^0.1.7",
+    "@stablelib/xchacha20poly1305": "^2.0.1",
+    "discord.js": "^14.24.2",
+    "ffmpeg-static": "^5.2.0",
+    "libsodium-wrappers": "^0.7.15",
+    "lucide-react": "^0.552.0",
+    "node-fetch": "^2.7.0",
+    "opusscript": "^0.0.8",
+    "prism-media": "^1.3.5",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-youtube": "^10.1.0",
+    "sodium-native": "^5.0.9",
+    "tweetnacl": "^1.0.3",
+    "use-local-storage": "^3.0.0",
+    "yt-dlp-wrap": "^2.3.12",
+    "ytdl-core": "^4.11.5"
+  },
+  "devDependencies": {
+    "@electron/packager": "^19.0.1",
+    "@tailwindcss/postcss": "^4.1.16",
+    "@vitejs/plugin-react": "^5.1.0",
+    "concurrently": "^9.2.1",
+    "electron": "^38.3.0",
+    "electron-builder": "^26.0.12",
+    "vite": "^7.1.12",
+    "wait-on": "^9.0.1"
+  },
+  "build": {
+    "appId": "com.discord.studio",
+    "productName": "Discord Studio",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "public",
+        "to": "public"
+      }
+    ],
+    "win": {
+      "target": "dir"
+    },
+    "nsis": false,
+    "mac": false,
+    "linux": false,
+    "forceCodeSigning": false,
+    "npmRebuild": false,
+    "artifactName": "${productName}-${version}.${ext}"
+  }
+}
